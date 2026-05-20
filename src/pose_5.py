@@ -56,7 +56,7 @@ def minimize_marginals(graph, initial_estimate, pose_options):
 
     marginals = gtsam.Marginals(graph, result)
     # The sum of the marginals for each landmark can be computed using marginals.marginalCovariance(L(x)).sum()
-    sum_of_marginals = 0.15697937979143664
+    sum_of_marginals = marginals.marginalCovariance(L(1)).sum() + marginals.marginalCovariance(L(2)).sum()
     return best_pose, best_landmark, sum_of_marginals
 
 def minimize_errors(graph, initial_estimate, pose_options):
@@ -69,8 +69,30 @@ def minimize_errors(graph, initial_estimate, pose_options):
     graph = add_landmark_measurement(graph, result, pose_5, best_landmark)
     result = optimize(graph, initial_estimate)
 
-    # TODO: create a list of errors (each index corresponds to a pose) and add the error of each pose to the list
-    list_of_errors = []
-    # TODO: compute the sum of the errors and return it along with the best pose and landmark
-    sum_of_errors = 0
-    return best_pose, best_landmark, sum_of_errors 
+ # ---- Extract estimated poses ----
+    x1_est = result.atPose2(X(1))
+    x2_est = result.atPose2(X(2))
+    x3_est = result.atPose2(X(3))
+
+    # ---- Ground truth ----
+    x1_gt = gtsam.Pose2(0, 0, 0)
+    x2_gt = gtsam.Pose2(2, 0, 0)
+    x3_gt = gtsam.Pose2(4, 0, 0)
+
+    # ---- Error function ----
+    def pose_error(est, gt):
+        dx = abs(est.x() - gt.x())
+        dy = abs(est.y() - gt.y())
+        dtheta = abs(est.theta() - gt.theta())
+        return dx + dy + dtheta
+
+    # ---- Compute errors ----
+    list_of_errors = [
+        pose_error(x1_est, x1_gt),
+        pose_error(x2_est, x2_gt),
+        pose_error(x3_est, x3_gt)
+    ]
+
+    sum_of_errors = sum(list_of_errors)
+
+    return best_pose, best_landmark, sum_of_errors
